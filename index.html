@@ -268,6 +268,78 @@ function fmtSteps(steps) {
   }).join("");
 }
 
+const DOMDESC = {
+  "swe-issue-fix": "resolve a real GitHub issue / bug in an existing repository so its tests pass",
+  "swe-feature-dev": "implement a new feature in an existing repository, verified by tests",
+  "swe-repo-generation": "build a whole repository or project from scratch from a specification",
+  "terminal-cli": "operate a Linux shell to reach a target system state (install, configure, script, debug)",
+  "devops-env-setup": "set up or repair build environments, dependencies, containers, CI",
+  "security-ctf": "capture-the-flag / offensive-defensive security tasks in sandboxes",
+  "app-dev-frontend": "build interactive websites / UIs (HTML/CSS/JS)",
+  "app-dev-backend": "build server-side APIs and services without a visual interface",
+  "mobile": "build Android/iOS applications",
+  "desktop": "build installable desktop applications",
+  "games": "build playable games or game logic",
+  "data-science": "analyze datasets: statistics, plots, notebooks, data wrangling",
+  "ml-engineering": "train/tune ML models, Kaggle-style pipelines, GPU code",
+  "web-research": "answer questions by autonomously searching and browsing the web",
+  "office-docs": "produce office deliverables: documents, reports, structured files",
+  "finance-spreadsheets": "spreadsheet/financial-analysis work with verifiable cell values",
+  "slides": "create or edit presentation decks",
+  "sql-database": "write/debug SQL and database operations",
+  "competitive-programming": "solve algorithmic contest problems against hidden test suites",
+  "code-generation-single-turn": "one-shot code writing without multi-turn environment interaction",
+  "test-generation": "write tests that reproduce a bug or verify a patch",
+  "code-review": "inspect code changes and identify defects",
+  "code-localization": "find which files/functions in a repo are relevant to an issue",
+  "math": "mathematical problem solving / theorem proving",
+  "science-reasoning": "scientific reasoning and derivations (physics, chemistry, biology)",
+  "tool-use-mcp": "multi-step workflows calling APIs/tools in synthetic applications",
+  "gui": "operate graphical interfaces (clicking, forms, navigation)",
+  "conversation-writing": "open-ended dialogue, writing, and instruction following",
+  "roleplay": "persona-conditioned long-form character dialogue",
+  "hardware-hdl": "hardware description language (Verilog/VHDL) design and repair",
+  "debugging": "diagnose and fix failing programs or systems",
+  "file-operations": "file and filesystem manipulation tasks",
+  "security": "security analysis and hardening tasks",
+  "personal-assistant": "multi-day knowledge-work workflows across office apps (mail, docs, chat)",
+  "scientific-computing": "numerical/scientific computation tasks (simulations, solvers)",
+  "data-querying": "query and retrieve information from structured data",
+  "data-processing": "transform, clean, and convert data and files",
+  "data-processing-etl": "extract-transform-load style data pipeline tasks",
+  "software-engineering": "general software-engineering work in repositories",
+  "dependency-management": "resolve and manage package dependencies",
+  "version-control": "git and version-control operations",
+  "vulnerability-repair": "find and patch security vulnerabilities in code",
+  "secure-code-generation": "write code that avoids security vulnerabilities",
+  "codebase-qa": "answer questions about a codebase by navigating it",
+  "algorithm-design": "design and implement algorithms for specified problems",
+  "performance-optimization": "make existing code measurably faster",
+  "optimization": "optimize code or systems against a quantitative target",
+  "code-migration": "port code across versions, languages, or frameworks",
+  "documentation-generation": "generate documentation from code",
+  "web-coding": "build web pages/applications (HTML/CSS/JS)",
+  "web-service": "build or operate web services and crawlers",
+  "web-api-tooling": "work with web APIs and tooling around them",
+  "safety-alignment": "safety/alignment behaviour training tasks",
+  "agentic-safety-alignment": "safety/alignment behaviour for agents",
+  "security-compliance": "security-compliance checking and remediation",
+  "linux-privilege-escalation": "escalate privileges on a Linux host in a sandboxed security exercise",
+  "video-processing": "process and edit video files",
+  "code-analysis": "static analysis and understanding of code",
+  "code-execution-tracing": "predict/trace program execution step by step",
+  "coding-agents-and-ides": "tasks about operating coding agents and IDE tooling",
+  "environment-interaction": "generic multi-turn interaction with an executable environment",
+  "multimodal-data-retrieval": "retrieve information from non-text artifacts (images, audio, video)",
+  "long-context-memory-qa": "question answering over very long contexts / persistent memory",
+  "embodied-household-planning": "text-based household task planning (ALFWorld-style)",
+};
+function domdesc(n) {
+  if (DOMDESC[n]) return DOMDESC[n];
+  const base = n.split(" (")[0].replace(/_/g, "-");
+  return DOMDESC[base] || "";
+}
+
 const VLBL = { verified: "quote verified verbatim in paper",
   judged: "agent judgment (no verbatim quote exists)",
   pending: "quote pending verification (fix-up in progress)",
@@ -288,9 +360,10 @@ function card(p) {
     p.has_user_summary ? `<span class="chip" style="border-color:var(--accent);color:var(--accent);background:transparent">user summary</span>` : "",
     p.withdrawn ? `<span class="chip" style="border-color:var(--crit);color:var(--crit);background:transparent">withdrawn on arXiv</span>` : "",
   ].join("");
-  const doms = p.domains.map(d =>
-    `<details class="ev"><summary><span class="chip">${esc(d.name)}<span class="vdot ${d.verdict}" title="${VLBL[d.verdict]}"></span></span></summary>${evBlock(d)}</details>`
-  ).join(" ");
+  const doms = p.domains.map(d => {
+    const dd = domdesc(d.name);
+    return `<details class="ev"><summary title="${esc(dd)}"><span class="chip">${esc(d.name)}<span class="vdot ${d.verdict}" title="${VLBL[d.verdict]}"></span></span></summary>${dd ? `<div class="quote" style="border-left-color:var(--accent)"><i>${esc(dd)}</i></div>` : ""}${evBlock(d)}</details>`;
+  }).join(" ");
   const ds = p.datasets.length ? `<table class="ds"><tr><th>artifact</th><th>kind</th><th>size</th><th>evidence</th></tr>` +
     p.datasets.map(d => `<tr><td>${esc(d.name || "")}</td><td>${esc(d.kind)}</td>
       <td class="num">${esc(d.size)}<span class="vdot ${d.verdict}" title="${VLBL[d.verdict]}"></span></td>
@@ -377,7 +450,8 @@ function render() {
     el.onclick = () => { state.domain = state.domain === el.dataset.dom ? "" : el.dataset.dom; render(); };
     el.onmousemove = ev => {
       const v = dc[el.dataset.dom];
-      showTip(ev, `<b>${el.dataset.dom}</b> — ${v.s + v.j} papers (${v.s} state it explicitly, ${v.j} agent-judged)<br>` +
+      const dd = domdesc(el.dataset.dom);
+      showTip(ev, `<b>${el.dataset.dom}</b>${dd ? `<br><i style="color:var(--ink-2)">${dd}</i>` : ""}<br>${v.s + v.j} papers (${v.s} state it explicitly, ${v.j} agent-judged)<br>` +
         `<span style="color:var(--ink-2)">${v.papers.slice(0, 8).map(esc).join("<br>")}${v.papers.length > 8 ? "<br>…" : ""}</span>`);
     };
     el.onmouseleave = hideTip;
