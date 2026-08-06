@@ -75,11 +75,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 14px 20px 60px; }
   text-transform: none; letter-spacing: 0; }
 .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px;
   margin-right: 4px; vertical-align: baseline; }
-#dombars { max-height: 340px; overflow-y: auto; display: flex;
+#dombars { max-height: 460px; overflow-y: auto; display: flex;
   flex-direction: column; gap: 5px; }
-.drow { display: grid; grid-template-columns: 168px 1fr 34px; gap: 8px;
+.drow { display: grid; grid-template-columns: 230px 1fr 34px; gap: 8px;
   align-items: center; font-size: 12.5px; cursor: pointer; border: 0;
   background: none; color: var(--ink-2); padding: 0; text-align: left; width: 100%; }
+.ddesc { display: block; font-size: 10.5px; color: var(--muted); line-height: 1.25;
+  white-space: normal; }
 .drow.active .dlab { color: var(--accent); font-weight: 600; }
 .dlab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dbar { display: flex; height: 12px; gap: 2px; align-items: stretch; }
@@ -442,7 +444,7 @@ function render() {
   $("#dombars").innerHTML = rows.map(([n, v]) => {
     const w = x => Math.max(x ? 2 : 0, 100 * x / max);
     return `<button class="drow${state.domain === n ? " active" : ""}" data-dom="${n}">
-      <span class="dlab">${n}</span>
+      <span class="dlab" style="white-space:normal">${n}${domdesc(n) ? `<span class="ddesc">${esc(domdesc(n))}</span>` : ""}</span>
       <span class="dbar">${v.s ? `<span class="dseg c" style="width:${w(v.s)}%"></span>` : ""}${v.j ? `<span class="dseg j" style="width:${w(v.j)}%"></span>` : ""}</span>
       <span class="dnum">${v.s + v.j}</span></button>`;
   }).join("");
