@@ -171,6 +171,17 @@ table.ds td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   font-size: 12px; color: var(--ink); box-shadow: 0 2px 10px rgba(0,0,0,0.18);
   max-width: 340px; display: none; }
 .count { color: var(--muted); font-size: 12.5px; margin: 4px 0 10px; }
+.activebar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 8px; }
+.activebar:empty { display: none; }
+.activebar .lead { font-size: 11px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.06em; }
+.fchip { display: inline-flex; align-items: baseline; gap: 6px; font-size: 11.5px;
+  padding: 2px 6px 2px 9px; border-radius: 99px; background: transparent;
+  border: 1px solid var(--accent); color: var(--accent); }
+.fchip b { font-weight: 600; }
+.fchip button { background: none; border: 0; color: inherit; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 0 1px; }
+.andlbl { font-size: 10.5px; color: var(--muted); }
 .section { margin-bottom: 26px; }
 .section > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline;
   gap: 10px; padding: 8px 0 8px; border-bottom: 2px solid var(--axis);
@@ -286,6 +297,7 @@ footer { color: var(--muted); font-size: 11.5px; margin-top: 30px; }
     <select id="ffilter" aria-label="Filtering strategy"></select>
     <select id="fkept" aria-label="Trajectory retention">
       <option value="">kept: all</option>
+      <option value="__failed">kept failed rollouts (either label)</option>
       <option value="successful only">successful only</option>
       <option value="successful and failed">successful and failed</option>
       <option value="all, minus malformed">all, minus malformed</option>
@@ -320,6 +332,7 @@ footer { color: var(--muted); font-size: 11.5px; margin-top: 30px; }
       </div>
     </div>
   </div>
+  <div class="activebar" id="activebar"></div>
   <div class="count" id="listcount"></div>
 
   <details class="section" id="sec-human" open>
@@ -789,7 +802,10 @@ function filtered() {
     if (state.teacher && !(m && m.teachers.some(t => t.canon === state.teacher))) return false;
     if (state.student && !(m && m.students.some(t => t.canon === state.student))) return false;
     if (state.harness && !(m && m.harness.includes(state.harness))) return false;
-    if (state.kept && !(m && m.kept === state.kept)) return false;
+    // "__failed" spans both labels that mean failed rollouts survived into the SFT set
+    if (state.kept === "__failed") {
+      if (!(m && ["successful and failed", "all, minus malformed"].includes(m.kept))) return false;
+    } else if (state.kept && !(m && m.kept === state.kept)) return false;
     const t = p.ptags || {sources: [], filters: []};
     if (state.source && !t.sources.includes(state.source)) return false;
     if (state.filter && !t.filters.includes(state.filter)) return false;
@@ -822,6 +838,39 @@ function render() {
     el.style.display = ids.has(el.dataset.id) ? "" : "none");
   $("#listcount").textContent = `${ps.length} of ${DATA.papers.length} papers` +
     (state.domain ? ` · domain: ${state.domain} (click bar again to clear)` : "");
+
+  // Show the query as removable chips. Conditions on different axes combine with AND, so a
+  // reader can see exactly which conditions produced the current count.
+  const KEPT_LABEL = { __failed: "kept failed rollouts" };
+  const ACTIVE = [
+    ["q", "search", state.q], ["group", "papers", state.group],
+    ["track", "track", state.track], ["rel", "release", state.rel],
+    ["domain", "domain", state.domain], ["tt", "TaskTrove", state.tt],
+    ["harbor", "Harbor", state.harbor], ["open", "data", state.open],
+    ["teacher", "teacher", state.teacher], ["student", "student", state.student],
+    ["harness", "harness", state.harness],
+    ["kept", "kept", KEPT_LABEL[state.kept] || state.kept],
+    ["source", "from", state.source], ["filter", "filter", state.filter],
+  ].filter(x => x[2]);
+  $("#activebar").innerHTML = ACTIVE.length
+    ? `<span class="lead">showing papers where</span>` + ACTIVE.map(([k, lab, v], i) =>
+        (i ? `<span class="andlbl">and</span>` : "") +
+        `<span class="fchip">${esc(lab)} <b>${esc(v)}</b>` +
+        `<button data-drop="${k}" title="remove this condition" aria-label="remove ${esc(lab)} filter">&times;</button></span>`
+      ).join("")
+    : "";
+  document.querySelectorAll("[data-drop]").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.drop;
+      state[k] = "";
+      const map = { q: "#q", group: "#fgroup", track: "#ftrack", rel: "#frel", tt: "#ftt",
+                    harbor: "#fharbor", open: "#fopen", teacher: "#fteacher",
+                    student: "#fstudent", harness: "#fharness", kept: "#fkept",
+                    source: "#fsource", filter: "#ffilter" };
+      if (map[k]) $(map[k]).value = "";
+      render();
+    };
+  });
 
   // per-section counts, so a filter shows how it splits across the two reading sources
   for (const who of ["human", "llm"]) {
